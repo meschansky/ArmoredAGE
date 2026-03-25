@@ -45,7 +45,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -76,6 +75,7 @@ fun AgeApp(context: Context) {
     val resultCopiedNotice = stringResource(R.string.notice_result_copied)
     val publicKeyCopiedNotice = stringResource(R.string.notice_public_key_copied)
     val privateKeyCopiedNotice = stringResource(R.string.notice_private_key_copied)
+    val clipboardEmptyNotice = stringResource(R.string.notice_clipboard_empty)
     val copyLabel = stringResource(R.string.action_copy)
 
     var deleteRecipientTarget by rememberSaveable { mutableStateOf<String?>(null) }
@@ -96,21 +96,26 @@ fun AgeApp(context: Context) {
         }
     }
 
+    fun pasteFromClipboard(onPasted: (String) -> Unit) {
+        scope.launch {
+            val text = clipboard
+                .getClipEntry()
+                ?.clipData
+                ?.takeIf { it.itemCount > 0 }
+                ?.getItemAt(0)
+                ?.coerceToText(context)
+                ?.toString()
+                ?.takeIf { it.isNotBlank() }
+
+            if (text == null) {
+                snackbarHostState.showSnackbar(clipboardEmptyNotice)
+            } else {
+                onPasted(text)
+            }
+        }
+    }
+
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(stringResource(R.string.app_name))
-                        Text(
-                            stringResource(R.string.app_tagline),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            )
-        },
         bottomBar = {
             NavigationBar {
                 TopLevelSection.entries.forEach { section ->
@@ -138,9 +143,13 @@ fun AgeApp(context: Context) {
                 onClearPlaintext = vm::clearPlaintext,
                 onClearCiphertext = vm::clearCiphertext,
                 onClearResult = vm::clearResult,
+                onPastePlaintext = { pasteFromClipboard(vm::updatePlaintext) },
+                onPasteCiphertext = { pasteFromClipboard(vm::updateCiphertext) },
                 onCopyResult = {
                     copyWithFeedback(state.result, resultCopiedNotice)
                 },
+                onOpenRecipients = { vm.selectSection(TopLevelSection.RECIPIENTS) },
+                onOpenMyKeys = { vm.selectSection(TopLevelSection.MY_KEYS) },
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
@@ -274,6 +283,7 @@ fun AgeApp(context: Context) {
             privateKey = importPrivateKey,
             onLabelChange = { importLabel = it },
             onPrivateKeyChange = { importPrivateKey = it },
+            onPastePrivateKey = { pasteFromClipboard { importPrivateKey = it } },
             onConfirm = {
                 if (vm.importIdentity(importLabel, importPrivateKey)) {
                     importDialogOpen = false
@@ -297,7 +307,11 @@ private fun MainSection(
     onClearPlaintext: () -> Unit,
     onClearCiphertext: () -> Unit,
     onClearResult: () -> Unit,
+    onPastePlaintext: () -> Unit,
+    onPasteCiphertext: () -> Unit,
     onCopyResult: () -> Unit,
+    onOpenRecipients: () -> Unit,
+    onOpenMyKeys: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -307,13 +321,6 @@ private fun MainSection(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item {
-            SectionHeader(
-                eyebrow = stringResource(R.string.main_eyebrow),
-                title = stringResource(R.string.main_title),
-                body = stringResource(R.string.main_body)
-            )
-        }
         item {
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
@@ -343,8 +350,17 @@ private fun MainSection(
                         options = state.recipients.map { it.first },
                         selected = state.selectedRecipient,
                         placeholder = stringResource(R.string.placeholder_select_recipient),
+                        enabled = state.recipients.isNotEmpty(),
                         onSelected = onRecipientSelected
                     )
+                    if (state.recipients.isEmpty()) {
+                        InlineActionCard(
+                            title = stringResource(R.string.main_no_recipients_title),
+                            body = stringResource(R.string.main_no_recipients_body),
+                            actionLabel = stringResource(R.string.action_open_recipients),
+                            onAction = onOpenRecipients
+                        )
+                    }
                     OutlinedTextField(
                         value = state.plaintext,
                         onValueChange = onPlaintextChange,
@@ -358,6 +374,9 @@ private fun MainSection(
                             enabled = state.selectedRecipient.isNotBlank() && state.plaintext.isNotBlank()
                         ) {
                             Text(stringResource(R.string.action_encrypt))
+                        }
+                        OutlinedButton(onClick = onPastePlaintext) {
+                            Text(stringResource(R.string.action_paste))
                         }
                         OutlinedButton(onClick = onClearPlaintext, enabled = state.plaintext.isNotBlank()) {
                             Text(stringResource(R.string.action_clear))
@@ -374,8 +393,17 @@ private fun MainSection(
                         options = state.identities,
                         selected = state.selectedIdentity,
                         placeholder = stringResource(R.string.placeholder_select_identity),
+                        enabled = state.identities.isNotEmpty(),
                         onSelected = onIdentitySelected
                     )
+                    if (state.identities.isEmpty()) {
+                        InlineActionCard(
+                            title = stringResource(R.string.main_no_identities_title),
+                            body = stringResource(R.string.main_no_identities_body),
+                            actionLabel = stringResource(R.string.action_open_my_keys),
+                            onAction = onOpenMyKeys
+                        )
+                    }
                     OutlinedTextField(
                         value = state.ciphertext,
                         onValueChange = onCiphertextChange,
@@ -389,6 +417,9 @@ private fun MainSection(
                             enabled = state.selectedIdentity.isNotBlank() && state.ciphertext.isNotBlank()
                         ) {
                             Text(stringResource(R.string.action_decrypt))
+                        }
+                        OutlinedButton(onClick = onPasteCiphertext) {
+                            Text(stringResource(R.string.action_paste))
                         }
                         OutlinedButton(onClick = onClearCiphertext, enabled = state.ciphertext.isNotBlank()) {
                             Text(stringResource(R.string.action_clear))
@@ -696,6 +727,32 @@ private fun EmptyStateCard(title: String, body: String) {
 }
 
 @Composable
+private fun InlineActionCard(
+    title: String,
+    body: String,
+    actionLabel: String,
+    onAction: () -> Unit
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+        shape = MaterialTheme.shapes.large
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(body, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(onClick = onAction) {
+                Text(actionLabel)
+            }
+        }
+    }
+}
+
+@Composable
 private fun SelectionCard(
     title: String,
     subtitle: String,
@@ -769,24 +826,26 @@ private fun DropdownSelector(
     options: List<String>,
     selected: String,
     placeholder: String,
+    enabled: Boolean = true,
     onSelected: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(
         expanded = expanded,
-        onExpandedChange = { expanded = !expanded }
+        onExpandedChange = { if (enabled) expanded = !expanded }
     ) {
         OutlinedTextField(
             value = selected.ifBlank { placeholder },
             onValueChange = {},
             readOnly = true,
+            enabled = enabled,
             label = { Text(label) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                 .fillMaxWidth()
         )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        ExposedDropdownMenu(expanded = enabled && expanded, onDismissRequest = { expanded = false }) {
             options.forEach { option ->
                 DropdownMenuItem(
                     text = { Text(option) },
@@ -831,6 +890,7 @@ private fun ImportIdentityDialog(
     privateKey: String,
     onLabelChange: (String) -> Unit,
     onPrivateKeyChange: (String) -> Unit,
+    onPastePrivateKey: () -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -852,6 +912,11 @@ private fun ImportIdentityDialog(
                     minLines = 4,
                     modifier = Modifier.fillMaxWidth()
                 )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(onClick = onPastePrivateKey) {
+                        Text(stringResource(R.string.action_paste))
+                    }
+                }
             }
         },
         confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.action_import_private_key)) } },

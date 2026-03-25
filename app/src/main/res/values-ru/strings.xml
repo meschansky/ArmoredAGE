@@ -31,6 +31,7 @@
     <string name="action_encrypt">Зашифровать</string>
     <string name="action_decrypt">Расшифровать</string>
     <string name="action_clear">Очистить</string>
+    <string name="action_paste">Вставить</string>
     <string name="action_copy">Копировать</string>
     <string name="action_copy_result">Копировать результат</string>
     <string name="action_copy_public">Копировать публичный</string>
@@ -43,6 +44,8 @@
     <string name="action_rename">Переименовать</string>
     <string name="action_delete">Удалить</string>
     <string name="action_delete_identity">Удалить идентичность</string>
+    <string name="action_open_recipients">Открыть получателей</string>
+    <string name="action_open_my_keys">Открыть мои ключи</string>
     <string name="action_save">Сохранить</string>
     <string name="action_cancel">Отмена</string>
 
@@ -79,6 +82,7 @@
     <string name="notice_result_copied">Результат скопирован</string>
     <string name="notice_public_key_copied">Публичный ключ скопирован</string>
     <string name="notice_private_key_copied">Приватный ключ скопирован</string>
+    <string name="notice_clipboard_empty">Буфер обмена пуст.</string>
     <string name="notice_identity_generated">Идентичность "%1$s" создана.</string>
     <string name="notice_recipient_saved">Получатель "%1$s" сохранён.</string>
     <string name="notice_recipient_deleted">Получатель "%1$s" удалён.</string>
@@ -97,4 +101,8 @@
     <string name="error_select_recipient">Выберите известного получателя для шифрования.</string>
     <string name="error_identity_missing">Идентичность не найдена. Сначала создайте или импортируйте её.</string>
     <string name="error_invalid_armored_payload">Разрешены только армированные AGE-пакеты.</string>
+    <string name="main_no_recipients_title">Для шифрования нужен получатель</string>
+    <string name="main_no_recipients_body">Сначала добавьте сохранённого получателя, затем вернитесь сюда для шифрования.</string>
+    <string name="main_no_identities_title">Для расшифровки нужна ваша идентичность</string>
+    <string name="main_no_identities_body">Сначала создайте или импортируйте идентичность, затем вернитесь сюда для расшифровки.</string>
 </resources>

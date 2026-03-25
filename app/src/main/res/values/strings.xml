@@ -31,6 +31,7 @@
     <string name="action_encrypt">Encrypt</string>
     <string name="action_decrypt">Decrypt</string>
     <string name="action_clear">Clear</string>
+    <string name="action_paste">Paste</string>
     <string name="action_copy">Copy</string>
     <string name="action_copy_result">Copy result</string>
     <string name="action_copy_public">Copy public</string>
@@ -43,6 +44,8 @@
     <string name="action_rename">Rename</string>
     <string name="action_delete">Delete</string>
     <string name="action_delete_identity">Delete identity</string>
+    <string name="action_open_recipients">Open Recipients</string>
+    <string name="action_open_my_keys">Open My Keys</string>
     <string name="action_save">Save</string>
     <string name="action_cancel">Cancel</string>
 
@@ -79,6 +82,7 @@
     <string name="notice_result_copied">Result copied</string>
     <string name="notice_public_key_copied">Public key copied</string>
     <string name="notice_private_key_copied">Private key copied</string>
+    <string name="notice_clipboard_empty">Clipboard is empty.</string>
     <string name="notice_identity_generated">Generated identity "%1$s".</string>
     <string name="notice_recipient_saved">Saved recipient "%1$s".</string>
     <string name="notice_recipient_deleted">Deleted recipient "%1$s".</string>
@@ -97,4 +101,8 @@
     <string name="error_select_recipient">Select a known recipient for encryption.</string>
     <string name="error_identity_missing">Identity not found. Generate or import one first.</string>
     <string name="error_invalid_armored_payload">Only armored AGE payloads are allowed.</string>
+    <string name="main_no_recipients_title">Encryption needs a recipient</string>
+    <string name="main_no_recipients_body">Add a saved recipient first, then return here to encrypt.</string>
+    <string name="main_no_identities_title">Decryption needs one of your identities</string>
+    <string name="main_no_identities_body">Generate or import an identity first, then return here to decrypt.</string>
 </resources>

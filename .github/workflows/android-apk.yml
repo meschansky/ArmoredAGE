@@ -52,14 +52,21 @@ jobs:
       - name: Build release APK
         run: gradle :app:assembleRelease
 
+      - name: Rename release APK
+        run: |
+          APK_PATH="$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | head -n 1)"
+          TARGET_PATH="app/build/outputs/apk/release/armored-age-${GITHUB_REF_NAME}.apk"
+          mv "$APK_PATH" "$TARGET_PATH"
+          echo "RELEASE_APK_PATH=$TARGET_PATH" >> "$GITHUB_ENV"
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: armored-age-release-apk
-          path: app/build/outputs/apk/release/*.apk
+          name: armored-age-${{ github.ref_name }}.apk
+          path: ${{ env.RELEASE_APK_PATH }}
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          files: app/build/outputs/apk/release/*.apk
+          files: ${{ env.RELEASE_APK_PATH }}
           generate_release_notes: true
