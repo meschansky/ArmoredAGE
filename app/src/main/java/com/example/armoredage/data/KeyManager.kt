@@ -30,6 +30,13 @@ class KeyManager(context: Context) {
 
     fun getStoredPublicKey(label: String): String? = prefs.getString("id_pub_$label", null)
 
+    fun deleteIdentity(label: String) {
+        prefs.edit()
+            .remove("id_priv_$label")
+            .remove("id_pub_$label")
+            .apply()
+    }
+
     fun listIdentityLabels(): List<String> =
         prefs.all.keys
             .filter { it.startsWith("id_priv_") }

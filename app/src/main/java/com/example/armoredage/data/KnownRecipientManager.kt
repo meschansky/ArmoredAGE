@@ -20,6 +20,10 @@ class KnownRecipientManager(context: Context) {
 
     fun getRecipient(name: String): String? = prefs.getString("recipient_$name", null)
 
+    fun deleteRecipient(name: String) {
+        prefs.edit().remove("recipient_$name").apply()
+    }
+
     fun listRecipients(): List<Pair<String, String>> =
         prefs.all
             .filter { it.key.startsWith("recipient_") }

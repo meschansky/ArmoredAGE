@@ -11,6 +11,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 
+enum class TopLevelSection {
+    MAIN,
+    RECIPIENTS,
+    MY_KEYS
+}
+
+enum class MainMode {
+    ENCRYPT,
+    DECRYPT
+}
+
 data class AgeUiState(
     val plaintext: String = "",
     val ciphertext: String = "",
@@ -20,6 +31,9 @@ data class AgeUiState(
     val recipientPubkeyInput: String = "",
     val result: String = "",
     val error: String? = null,
+    val notice: String? = null,
+    val activeSection: TopLevelSection = TopLevelSection.MAIN,
+    val mainMode: MainMode = MainMode.ENCRYPT,
     val identities: List<String> = emptyList(),
     val recipients: List<Pair<String, String>> = emptyList()
 )
@@ -44,6 +58,9 @@ class AgeViewModel(
     fun updateRecipientPubkey(value: String) = _uiState.update { it.copy(recipientPubkeyInput = value, error = null) }
     fun selectRecipient(value: String) = _uiState.update { it.copy(selectedRecipient = value, error = null) }
     fun selectIdentity(value: String) = _uiState.update { it.copy(selectedIdentity = value, error = null) }
+    fun selectSection(value: TopLevelSection) = _uiState.update { it.copy(activeSection = value) }
+    fun selectMainMode(value: MainMode) = _uiState.update { it.copy(mainMode = value, error = null) }
+    fun clearNotice() = _uiState.update { it.copy(notice = null) }
 
     fun generateIdentity() {
         runCatching {
@@ -53,7 +70,8 @@ class AgeViewModel(
                 it.copy(
                     identities = keyManager.listIdentityLabels(),
                     selectedIdentity = label,
-                    result = "Generated identity '$label'.",
+                    activeSection = TopLevelSection.MY_KEYS,
+                    notice = "Generated identity '$label'.",
                     error = null
                 )
             }
@@ -72,7 +90,38 @@ class AgeViewModel(
                     selectedRecipient = name,
                     recipientNameInput = "",
                     recipientPubkeyInput = "",
-                    result = "Saved recipient '$name'.",
+                    activeSection = TopLevelSection.RECIPIENTS,
+                    notice = "Saved recipient '$name'.",
+                    error = null
+                )
+            }
+        }.onFailure { setError(it) }
+    }
+
+    fun deleteRecipient(name: String) {
+        runCatching {
+            recipientManager.deleteRecipient(name)
+            val recipients = recipientManager.listRecipients()
+            _uiState.update {
+                it.copy(
+                    recipients = recipients,
+                    selectedRecipient = if (it.selectedRecipient == name) recipients.firstOrNull()?.first.orEmpty() else it.selectedRecipient,
+                    notice = "Deleted recipient '$name'.",
+                    error = null
+                )
+            }
+        }.onFailure { setError(it) }
+    }
+
+    fun deleteIdentity(label: String) {
+        runCatching {
+            keyManager.deleteIdentity(label)
+            val identities = keyManager.listIdentityLabels()
+            _uiState.update {
+                it.copy(
+                    identities = identities,
+                    selectedIdentity = if (it.selectedIdentity == label) identities.firstOrNull().orEmpty() else it.selectedIdentity,
+                    notice = "Deleted identity '$label'.",
                     error = null
                 )
             }
@@ -101,6 +150,10 @@ class AgeViewModel(
         }.onFailure { setError(it) }
     }
 
+    fun publicKeyFor(label: String): String? = keyManager.getStoredPublicKey(label)
+
+    fun privateKeyFor(label: String): String? = keyManager.getStoredPrivateKey(label)
+
     private fun setError(ex: Throwable) {
         _uiState.update {
             it.copy(error = ex.message ?: "Unknown error", result = "")
@@ -111,10 +164,13 @@ class AgeViewModel(
         fun factory(context: Context): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return AgeViewModel(
+                    require(modelClass.isAssignableFrom(AgeViewModel::class.java))
+                    return modelClass.cast(
+                        AgeViewModel(
                         keyManager = KeyManager(context),
                         recipientManager = KnownRecipientManager(context)
-                    ) as T
+                        )
+                    )!!
                 }
             }
     }
