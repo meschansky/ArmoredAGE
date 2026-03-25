@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ArmoredAge</string>
+    <string name="app_tagline">Шифрование, расшифровка и управление идентичностями AGE</string>
+
+    <string name="nav_main">Главная</string>
+    <string name="nav_recipients">Получатели</string>
+    <string name="nav_my_keys">Мои ключи</string>
+
+    <string name="main_eyebrow">Главная</string>
+    <string name="main_title">Кодирование и декодирование армированных AGE-пакетов</string>
+    <string name="main_body">Работайте по одному сценарию за раз и держите результат под рукой для копирования.</string>
+    <string name="main_mode_encrypt">Шифрование</string>
+    <string name="main_mode_decrypt">Расшифровка</string>
+    <string name="main_encrypt_title">Шифрование</string>
+    <string name="main_encrypt_body">Выберите сохранённого получателя и преобразуйте открытый текст в армированный AGE-вывод.</string>
+    <string name="main_decrypt_title">Расшифровка</string>
+    <string name="main_decrypt_body">Используйте одну из сохранённых идентичностей, чтобы декодировать армированный AGE-пакет.</string>
+
+    <string name="label_recipient">Получатель</string>
+    <string name="placeholder_select_recipient">Выберите получателя</string>
+    <string name="label_identity">Идентичность</string>
+    <string name="placeholder_select_identity">Выберите идентичность</string>
+    <string name="label_plaintext">Открытый текст</string>
+    <string name="label_armored_payload">Армированный AGE-пакет</string>
+    <string name="label_recipient_alias">Псевдоним получателя</string>
+    <string name="label_age_public_key">AGE публичный ключ</string>
+    <string name="hint_age_public_key">Ожидаемый формат: age1...</string>
+    <string name="label_private_key">AGE приватный ключ</string>
+
+    <string name="action_encrypt">Зашифровать</string>
+    <string name="action_decrypt">Расшифровать</string>
+    <string name="action_clear">Очистить</string>
+    <string name="action_copy">Копировать</string>
+    <string name="action_copy_result">Копировать результат</string>
+    <string name="action_copy_public">Копировать публичный</string>
+    <string name="action_copy_private">Копировать приватный</string>
+    <string name="action_save_recipient">Сохранить получателя</string>
+    <string name="action_generate_identity">Создать идентичность</string>
+    <string name="action_import_private_key">Импортировать приватный ключ</string>
+    <string name="action_select">Выбрать</string>
+    <string name="action_selected">Выбрано</string>
+    <string name="action_rename">Переименовать</string>
+    <string name="action_delete">Удалить</string>
+    <string name="action_delete_identity">Удалить идентичность</string>
+    <string name="action_save">Сохранить</string>
+    <string name="action_cancel">Отмена</string>
+
+    <string name="result_title">Результат</string>
+    <string name="result_hint">Запустите шифрование или расшифровку, чтобы увидеть вывод здесь.</string>
+    <string name="result_output_label">Вывод</string>
+
+    <string name="recipients_eyebrow">Получатели</string>
+    <string name="recipients_title">Управление теми, для кого вы шифруете</string>
+    <string name="recipients_body">Сохраните доверенные ключи получателей один раз, а затем выбирайте их прямо в главном экране.</string>
+    <string name="recipients_add_title">Добавить получателя</string>
+    <string name="recipients_add_body">Сохраните псевдоним получателя и его публичный AGE-ключ для повторного использования.</string>
+    <string name="empty_recipients_title">Пока нет получателей</string>
+    <string name="empty_recipients_body">Добавьте получателя, чтобы включить шифрование.</string>
+
+    <string name="my_keys_eyebrow">Мои ключи</string>
+    <string name="my_keys_title">Управление локальными идентичностями</string>
+    <string name="my_keys_body">Создавайте AGE-идентичности на устройстве, выбирайте активную и копируйте ключи при необходимости.</string>
+    <string name="my_keys_create_title">Создать идентичность</string>
+    <string name="my_keys_create_body">Создайте новую X25519-идентичность и сохраните её на устройстве в защищённом виде.</string>
+    <string name="empty_identities_title">Пока нет идентичностей</string>
+    <string name="empty_identities_body">Создайте или импортируйте идентичность, чтобы расшифровывать сообщения на этом устройстве.</string>
+
+    <string name="dialog_delete_recipient_title">Удалить получателя?</string>
+    <string name="dialog_delete_recipient_body">Удалить "%1$s" из сохранённых получателей?</string>
+    <string name="dialog_delete_identity_title">Удалить идентичность?</string>
+    <string name="dialog_delete_identity_body">Удалить "%1$s" и сохранённые ключи с этого устройства?</string>
+    <string name="dialog_copy_private_key_title">Копировать приватный ключ?</string>
+    <string name="dialog_copy_private_key_body">Приватные ключи дают доступ к расшифровке. Копировать "%1$s" в буфер обмена?</string>
+    <string name="dialog_rename_recipient_title">Переименовать получателя</string>
+    <string name="dialog_rename_identity_title">Переименовать идентичность</string>
+    <string name="dialog_import_private_key_title">Импортировать приватный ключ</string>
+
+    <string name="notice_result_copied">Результат скопирован</string>
+    <string name="notice_public_key_copied">Публичный ключ скопирован</string>
+    <string name="notice_private_key_copied">Приватный ключ скопирован</string>
+    <string name="notice_identity_generated">Идентичность "%1$s" создана.</string>
+    <string name="notice_recipient_saved">Получатель "%1$s" сохранён.</string>
+    <string name="notice_recipient_deleted">Получатель "%1$s" удалён.</string>
+    <string name="notice_recipient_renamed">Получатель "%1$s" переименован в "%2$s".</string>
+    <string name="notice_identity_deleted">Идентичность "%1$s" удалена.</string>
+    <string name="notice_identity_renamed">Идентичность "%1$s" переименована в "%2$s".</string>
+    <string name="notice_identity_imported">Идентичность "%1$s" импортирована.</string>
+
+    <string name="error_unknown">Неизвестная ошибка</string>
+    <string name="error_recipient_name_required">Требуется имя получателя.</string>
+    <string name="error_recipient_duplicate">Псевдоним получателя уже существует.</string>
+    <string name="error_identity_label_required">Требуется имя идентичности.</string>
+    <string name="error_identity_duplicate">Имя идентичности уже существует.</string>
+    <string name="error_invalid_private_key">Недопустимый приватный ключ AGE.</string>
+    <string name="error_invalid_public_key">Получатель должен быть действительным публичным AGE-ключом.</string>
+    <string name="error_select_recipient">Выберите известного получателя для шифрования.</string>
+    <string name="error_identity_missing">Идентичность не найдена. Сначала создайте или импортируйте её.</string>
+    <string name="error_invalid_armored_payload">Разрешены только армированные AGE-пакеты.</string>
+</resources>

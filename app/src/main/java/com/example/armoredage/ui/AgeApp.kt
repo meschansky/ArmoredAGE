@@ -2,9 +2,9 @@ package com.example.armoredage.ui
 
 import android.content.ClipData
 import android.content.Context
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -57,10 +57,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.armoredage.R
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,9 +73,21 @@ fun AgeApp(context: Context) {
     val snackbarHostState = remember { SnackbarHostState() }
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
-    var pendingDeleteRecipient by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingDeleteIdentity by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingPrivateKeyCopy by rememberSaveable { mutableStateOf<String?>(null) }
+    val resultCopiedNotice = stringResource(R.string.notice_result_copied)
+    val publicKeyCopiedNotice = stringResource(R.string.notice_public_key_copied)
+    val privateKeyCopiedNotice = stringResource(R.string.notice_private_key_copied)
+    val copyLabel = stringResource(R.string.action_copy)
+
+    var deleteRecipientTarget by rememberSaveable { mutableStateOf<String?>(null) }
+    var deleteIdentityTarget by rememberSaveable { mutableStateOf<String?>(null) }
+    var privateKeyCopyTarget by rememberSaveable { mutableStateOf<String?>(null) }
+    var renameRecipientTarget by rememberSaveable { mutableStateOf<String?>(null) }
+    var renameRecipientDraft by rememberSaveable { mutableStateOf("") }
+    var renameIdentityTarget by rememberSaveable { mutableStateOf<String?>(null) }
+    var renameIdentityDraft by rememberSaveable { mutableStateOf("") }
+    var importDialogOpen by rememberSaveable { mutableStateOf(false) }
+    var importLabel by rememberSaveable { mutableStateOf("") }
+    var importPrivateKey by rememberSaveable { mutableStateOf("") }
 
     fun copyWithFeedback(value: String, message: String) {
         scope.launch {
@@ -87,9 +101,9 @@ fun AgeApp(context: Context) {
             TopAppBar(
                 title = {
                     Column {
-                        Text("ArmoredAge")
+                        Text(stringResource(R.string.app_name))
                         Text(
-                            "Encrypt, decrypt, and manage AGE identities",
+                            stringResource(R.string.app_tagline),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -103,8 +117,8 @@ fun AgeApp(context: Context) {
                     NavigationBarItem(
                         selected = state.activeSection == section,
                         onClick = { vm.selectSection(section) },
-                        icon = { Icon(section.icon, contentDescription = section.label) },
-                        label = { Text(section.label) }
+                        icon = { Icon(section.icon, contentDescription = stringResource(section.labelRes)) },
+                        label = { Text(stringResource(section.labelRes)) }
                     )
                 }
             }
@@ -121,7 +135,12 @@ fun AgeApp(context: Context) {
                 onIdentitySelected = vm::selectIdentity,
                 onEncrypt = vm::encrypt,
                 onDecrypt = vm::decrypt,
-                onCopyResult = { copyWithFeedback(state.result, "Result copied") },
+                onClearPlaintext = vm::clearPlaintext,
+                onClearCiphertext = vm::clearCiphertext,
+                onClearResult = vm::clearResult,
+                onCopyResult = {
+                    copyWithFeedback(state.result, resultCopiedNotice)
+                },
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
@@ -133,7 +152,11 @@ fun AgeApp(context: Context) {
                 onPubkeyChange = vm::updateRecipientPubkey,
                 onSave = vm::saveRecipient,
                 onSelect = vm::selectRecipient,
-                onDelete = { pendingDeleteRecipient = it },
+                onRename = { label ->
+                    renameRecipientTarget = label
+                    renameRecipientDraft = label
+                },
+                onDelete = { deleteRecipientTarget = it },
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
@@ -142,12 +165,23 @@ fun AgeApp(context: Context) {
             TopLevelSection.MY_KEYS -> KeysSection(
                 state = state,
                 onGenerate = vm::generateIdentity,
-                onSelect = vm::selectIdentity,
-                onCopyPublicKey = { label ->
-                    vm.publicKeyFor(label)?.let { copyWithFeedback(it, "Public key copied") }
+                onImport = {
+                    importDialogOpen = true
+                    importLabel = ""
+                    importPrivateKey = ""
                 },
-                onCopyPrivateKey = { pendingPrivateKeyCopy = it },
-                onDelete = { pendingDeleteIdentity = it },
+                onSelect = vm::selectIdentity,
+                onRename = { label ->
+                    renameIdentityTarget = label
+                    renameIdentityDraft = label
+                },
+                onCopyPublicKey = { label ->
+                    vm.publicKeyFor(label)?.let {
+                        copyWithFeedback(it, publicKeyCopiedNotice)
+                    }
+                },
+                onCopyPrivateKey = { privateKeyCopyTarget = it },
+                onDelete = { deleteIdentityTarget = it },
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
@@ -155,54 +189,97 @@ fun AgeApp(context: Context) {
         }
     }
 
-    state.error?.let { error ->
-        LaunchedSnackBar(error, snackbarHostState)
+    state.errorMessage?.let { message ->
+        LaunchedSnackBar(message, snackbarHostState, vm::clearError)
     }
 
-    state.notice?.let { notice ->
-        LaunchedSnackBar(
-            message = notice,
-            snackbarHostState = snackbarHostState,
-            onShown = vm::clearNotice
-        )
+    state.noticeMessage?.let { message ->
+        LaunchedSnackBar(message, snackbarHostState, vm::clearNotice)
     }
 
-    pendingDeleteRecipient?.let { name ->
+    deleteRecipientTarget?.let { name ->
         ConfirmationDialog(
-            title = "Delete recipient?",
-            text = "Remove '$name' from saved recipients?",
-            confirmLabel = "Delete",
+            title = stringResource(R.string.dialog_delete_recipient_title),
+            text = stringResource(R.string.dialog_delete_recipient_body, name),
+            confirmLabel = stringResource(R.string.action_delete),
             onConfirm = {
                 vm.deleteRecipient(name)
-                pendingDeleteRecipient = null
+                deleteRecipientTarget = null
             },
-            onDismiss = { pendingDeleteRecipient = null }
+            onDismiss = { deleteRecipientTarget = null }
         )
     }
 
-    pendingDeleteIdentity?.let { label ->
+    deleteIdentityTarget?.let { label ->
         ConfirmationDialog(
-            title = "Delete identity?",
-            text = "Delete '$label' and its stored keys from this device?",
-            confirmLabel = "Delete",
+            title = stringResource(R.string.dialog_delete_identity_title),
+            text = stringResource(R.string.dialog_delete_identity_body, label),
+            confirmLabel = stringResource(R.string.action_delete),
             onConfirm = {
                 vm.deleteIdentity(label)
-                pendingDeleteIdentity = null
+                deleteIdentityTarget = null
             },
-            onDismiss = { pendingDeleteIdentity = null }
+            onDismiss = { deleteIdentityTarget = null }
         )
     }
 
-    pendingPrivateKeyCopy?.let { label ->
+    privateKeyCopyTarget?.let { label ->
         ConfirmationDialog(
-            title = "Copy private key?",
-            text = "Private keys grant decrypt access. Copy '$label' to the clipboard?",
-            confirmLabel = "Copy",
+            title = stringResource(R.string.dialog_copy_private_key_title),
+            text = stringResource(R.string.dialog_copy_private_key_body, label),
+            confirmLabel = copyLabel,
             onConfirm = {
-                vm.privateKeyFor(label)?.let { copyWithFeedback(it, "Private key copied") }
-                pendingPrivateKeyCopy = null
+                vm.privateKeyFor(label)?.let {
+                    copyWithFeedback(it, privateKeyCopiedNotice)
+                }
+                privateKeyCopyTarget = null
             },
-            onDismiss = { pendingPrivateKeyCopy = null }
+            onDismiss = { privateKeyCopyTarget = null }
+        )
+    }
+
+    renameRecipientTarget?.let { original ->
+        RenameDialog(
+            title = stringResource(R.string.dialog_rename_recipient_title),
+            value = renameRecipientDraft,
+            valueLabel = stringResource(R.string.label_recipient_alias),
+            onValueChange = { renameRecipientDraft = it },
+            onConfirm = {
+                if (vm.renameRecipient(original, renameRecipientDraft)) {
+                    renameRecipientTarget = null
+                }
+            },
+            onDismiss = { renameRecipientTarget = null }
+        )
+    }
+
+    renameIdentityTarget?.let { original ->
+        RenameDialog(
+            title = stringResource(R.string.dialog_rename_identity_title),
+            value = renameIdentityDraft,
+            valueLabel = stringResource(R.string.label_identity),
+            onValueChange = { renameIdentityDraft = it },
+            onConfirm = {
+                if (vm.renameIdentity(original, renameIdentityDraft)) {
+                    renameIdentityTarget = null
+                }
+            },
+            onDismiss = { renameIdentityTarget = null }
+        )
+    }
+
+    if (importDialogOpen) {
+        ImportIdentityDialog(
+            label = importLabel,
+            privateKey = importPrivateKey,
+            onLabelChange = { importLabel = it },
+            onPrivateKeyChange = { importPrivateKey = it },
+            onConfirm = {
+                if (vm.importIdentity(importLabel, importPrivateKey)) {
+                    importDialogOpen = false
+                }
+            },
+            onDismiss = { importDialogOpen = false }
         )
     }
 }
@@ -217,6 +294,9 @@ private fun MainSection(
     onIdentitySelected: (String) -> Unit,
     onEncrypt: () -> Unit,
     onDecrypt: () -> Unit,
+    onClearPlaintext: () -> Unit,
+    onClearCiphertext: () -> Unit,
+    onClearResult: () -> Unit,
     onCopyResult: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -229,9 +309,9 @@ private fun MainSection(
     ) {
         item {
             SectionHeader(
-                eyebrow = "Main",
-                title = "Encode and decode armored AGE payloads",
-                body = "Focus on one workflow at a time and keep results easy to copy."
+                eyebrow = stringResource(R.string.main_eyebrow),
+                title = stringResource(R.string.main_title),
+                body = stringResource(R.string.main_body)
             )
         }
         item {
@@ -245,7 +325,7 @@ private fun MainSection(
                             Tab(
                                 selected = state.mainMode == mode,
                                 onClick = { onModeSelected(mode) },
-                                text = { Text(mode.label) }
+                                text = { Text(stringResource(mode.labelRes)) }
                             )
                         }
                     }
@@ -255,20 +335,20 @@ private fun MainSection(
         item {
             if (state.mainMode == MainMode.ENCRYPT) {
                 WorkflowCard(
-                    title = "Encrypt",
-                    body = "Choose a saved recipient and convert plaintext into armored AGE output."
+                    title = stringResource(R.string.main_encrypt_title),
+                    body = stringResource(R.string.main_encrypt_body)
                 ) {
                     DropdownSelector(
-                        label = "Recipient",
+                        label = stringResource(R.string.label_recipient),
                         options = state.recipients.map { it.first },
                         selected = state.selectedRecipient,
-                        placeholder = "Select a recipient",
+                        placeholder = stringResource(R.string.placeholder_select_recipient),
                         onSelected = onRecipientSelected
                     )
                     OutlinedTextField(
                         value = state.plaintext,
                         onValueChange = onPlaintextChange,
-                        label = { Text("Plaintext") },
+                        label = { Text(stringResource(R.string.label_plaintext)) },
                         minLines = 6,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -277,34 +357,42 @@ private fun MainSection(
                             onClick = onEncrypt,
                             enabled = state.selectedRecipient.isNotBlank() && state.plaintext.isNotBlank()
                         ) {
-                            Text("Encrypt")
+                            Text(stringResource(R.string.action_encrypt))
+                        }
+                        OutlinedButton(onClick = onClearPlaintext, enabled = state.plaintext.isNotBlank()) {
+                            Text(stringResource(R.string.action_clear))
                         }
                     }
                 }
             } else {
                 WorkflowCard(
-                    title = "Decrypt",
-                    body = "Use one of your saved identities to decode an armored AGE payload."
+                    title = stringResource(R.string.main_decrypt_title),
+                    body = stringResource(R.string.main_decrypt_body)
                 ) {
                     DropdownSelector(
-                        label = "Identity",
+                        label = stringResource(R.string.label_identity),
                         options = state.identities,
                         selected = state.selectedIdentity,
-                        placeholder = "Select an identity",
+                        placeholder = stringResource(R.string.placeholder_select_identity),
                         onSelected = onIdentitySelected
                     )
                     OutlinedTextField(
                         value = state.ciphertext,
                         onValueChange = onCiphertextChange,
-                        label = { Text("Armored AGE payload") },
+                        label = { Text(stringResource(R.string.label_armored_payload)) },
                         minLines = 8,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Button(
-                        onClick = onDecrypt,
-                        enabled = state.selectedIdentity.isNotBlank() && state.ciphertext.isNotBlank()
-                    ) {
-                        Text("Decrypt")
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Button(
+                            onClick = onDecrypt,
+                            enabled = state.selectedIdentity.isNotBlank() && state.ciphertext.isNotBlank()
+                        ) {
+                            Text(stringResource(R.string.action_decrypt))
+                        }
+                        OutlinedButton(onClick = onClearCiphertext, enabled = state.ciphertext.isNotBlank()) {
+                            Text(stringResource(R.string.action_clear))
+                        }
                     }
                 }
             }
@@ -312,8 +400,8 @@ private fun MainSection(
         item {
             ResultCard(
                 result = state.result,
-                error = state.error,
-                onCopy = onCopyResult
+                onCopy = onCopyResult,
+                onClear = onClearResult
             )
         }
     }
@@ -326,6 +414,7 @@ private fun RecipientsSection(
     onPubkeyChange: (String) -> Unit,
     onSave: () -> Unit,
     onSelect: (String) -> Unit,
+    onRename: (String) -> Unit,
     onDelete: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -336,40 +425,47 @@ private fun RecipientsSection(
     ) {
         item {
             SectionHeader(
-                eyebrow = "Recipients",
-                title = "Manage who you encrypt for",
-                body = "Save trusted recipient keys once, then pick them instantly from the main flow."
+                eyebrow = stringResource(R.string.recipients_eyebrow),
+                title = stringResource(R.string.recipients_title),
+                body = stringResource(R.string.recipients_body)
             )
         }
         item {
             WorkflowCard(
-                title = "Add recipient",
-                body = "Store a recipient alias and public AGE key for reuse."
+                title = stringResource(R.string.recipients_add_title),
+                body = stringResource(R.string.recipients_add_body)
             ) {
                 OutlinedTextField(
                     value = state.recipientNameInput,
                     onValueChange = onNameChange,
-                    label = { Text("Recipient alias") },
+                    label = { Text(stringResource(R.string.label_recipient_alias)) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = state.recipientPubkeyInput,
                     onValueChange = onPubkeyChange,
-                    label = { Text("AGE public key") },
-                    supportingText = { Text("Expected format: age1...") },
+                    label = { Text(stringResource(R.string.label_age_public_key)) },
+                    supportingText = { Text(stringResource(R.string.hint_age_public_key)) },
                     minLines = 3,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Button(
-                    onClick = onSave,
-                    enabled = state.recipientNameInput.isNotBlank() && state.recipientPubkeyInput.isNotBlank()
-                ) {
-                    Text("Save recipient")
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(
+                        onClick = onSave,
+                        enabled = state.recipientNameInput.isNotBlank() && state.recipientPubkeyInput.isNotBlank()
+                    ) {
+                        Text(stringResource(R.string.action_save_recipient))
+                    }
                 }
             }
         }
         if (state.recipients.isEmpty()) {
-            item { EmptyStateCard("No recipients yet", "Add a recipient to enable encryption.") }
+            item {
+                EmptyStateCard(
+                    title = stringResource(R.string.empty_recipients_title),
+                    body = stringResource(R.string.empty_recipients_body)
+                )
+            }
         } else {
             items(state.recipients, key = { it.first }) { (name, publicKey) ->
                 SelectionCard(
@@ -377,10 +473,25 @@ private fun RecipientsSection(
                     subtitle = publicKey,
                     selected = state.selectedRecipient == name,
                     primaryAction = {
-                        TextButton(onClick = { onSelect(name) }) { Text(if (state.selectedRecipient == name) "Selected" else "Select") }
+                        TextButton(onClick = { onSelect(name) }) {
+                            Text(
+                                if (state.selectedRecipient == name) {
+                                    stringResource(R.string.action_selected)
+                                } else {
+                                    stringResource(R.string.action_select)
+                                }
+                            )
+                        }
                     },
                     secondaryAction = {
-                        TextButton(onClick = { onDelete(name) }) { Text("Delete") }
+                        TextButton(onClick = { onRename(name) }) {
+                            Text(stringResource(R.string.action_rename))
+                        }
+                    },
+                    tertiaryAction = {
+                        TextButton(onClick = { onDelete(name) }) {
+                            Text(stringResource(R.string.action_delete))
+                        }
                     }
                 )
             }
@@ -392,7 +503,9 @@ private fun RecipientsSection(
 private fun KeysSection(
     state: AgeUiState,
     onGenerate: () -> Unit,
+    onImport: () -> Unit,
     onSelect: (String) -> Unit,
+    onRename: (String) -> Unit,
     onCopyPublicKey: (String) -> Unit,
     onCopyPrivateKey: (String) -> Unit,
     onDelete: (String) -> Unit,
@@ -405,21 +518,33 @@ private fun KeysSection(
     ) {
         item {
             SectionHeader(
-                eyebrow = "My Keys",
-                title = "Manage local identities",
-                body = "Generate device-stored AGE identities, choose the active one, and copy keys when needed."
+                eyebrow = stringResource(R.string.my_keys_eyebrow),
+                title = stringResource(R.string.my_keys_title),
+                body = stringResource(R.string.my_keys_body)
             )
         }
         item {
             WorkflowCard(
-                title = "Create identity",
-                body = "Generate a fresh X25519 identity and store it securely on-device."
+                title = stringResource(R.string.my_keys_create_title),
+                body = stringResource(R.string.my_keys_create_body)
             ) {
-                Button(onClick = onGenerate) { Text("Generate identity") }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(onClick = onGenerate) {
+                        Text(stringResource(R.string.action_generate_identity))
+                    }
+                    OutlinedButton(onClick = onImport) {
+                        Text(stringResource(R.string.action_import_private_key))
+                    }
+                }
             }
         }
         if (state.identities.isEmpty()) {
-            item { EmptyStateCard("No identities yet", "Generate an identity to decrypt messages on this device.") }
+            item {
+                EmptyStateCard(
+                    title = stringResource(R.string.empty_identities_title),
+                    body = stringResource(R.string.empty_identities_body)
+                )
+            }
         } else {
             items(state.identities, key = { it }) { label ->
                 ElevatedCard(
@@ -442,13 +567,30 @@ private fun KeysSection(
                             FilterChip(
                                 selected = state.selectedIdentity == label,
                                 onClick = { onSelect(label) },
-                                label = { Text(if (state.selectedIdentity == label) "Selected" else "Select") }
+                                label = {
+                                    Text(
+                                        if (state.selectedIdentity == label) {
+                                            stringResource(R.string.action_selected)
+                                        } else {
+                                            stringResource(R.string.action_select)
+                                        }
+                                    )
+                                }
                             )
-                            OutlinedButton(onClick = { onCopyPublicKey(label) }) { Text("Copy public") }
+                            OutlinedButton(onClick = { onRename(label) }) {
+                                Text(stringResource(R.string.action_rename))
+                            }
+                            OutlinedButton(onClick = { onCopyPublicKey(label) }) {
+                                Text(stringResource(R.string.action_copy_public))
+                            }
                         }
-                        OutlinedButton(onClick = { onCopyPrivateKey(label) }) { Text("Copy private") }
+                        OutlinedButton(onClick = { onCopyPrivateKey(label) }) {
+                            Text(stringResource(R.string.action_copy_private))
+                        }
                         HorizontalDivider()
-                        TextButton(onClick = { onDelete(label) }) { Text("Delete identity") }
+                        TextButton(onClick = { onDelete(label) }) {
+                            Text(stringResource(R.string.action_delete_identity))
+                        }
                     }
                 }
             }
@@ -495,7 +637,11 @@ private fun WorkflowCard(
 }
 
 @Composable
-private fun ResultCard(result: String, error: String?, onCopy: () -> Unit) {
+private fun ResultCard(
+    result: String,
+    onCopy: () -> Unit,
+    onClear: () -> Unit
+) {
     ElevatedCard {
         Column(
             modifier = Modifier
@@ -503,22 +649,10 @@ private fun ResultCard(result: String, error: String?, onCopy: () -> Unit) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Result", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-            if (error != null) {
-                Surface(
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Text(
-                        text = error,
-                        modifier = Modifier.padding(12.dp),
-                        color = MaterialTheme.colorScheme.onErrorContainer
-                    )
-                }
-            }
+            Text(stringResource(R.string.result_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
             if (result.isBlank()) {
                 Text(
-                    "Run an encrypt or decrypt action to see output here.",
+                    stringResource(R.string.result_hint),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
@@ -528,9 +662,16 @@ private fun ResultCard(result: String, error: String?, onCopy: () -> Unit) {
                     readOnly = true,
                     minLines = 8,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Output") }
+                    label = { Text(stringResource(R.string.result_output_label)) }
                 )
-                Button(onClick = onCopy) { Text("Copy result") }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(onClick = onCopy, enabled = result.isNotBlank()) {
+                    Text(stringResource(R.string.action_copy_result))
+                }
+                OutlinedButton(onClick = onClear) {
+                    Text(stringResource(R.string.action_clear))
+                }
             }
         }
     }
@@ -560,7 +701,8 @@ private fun SelectionCard(
     subtitle: String,
     selected: Boolean,
     primaryAction: @Composable () -> Unit,
-    secondaryAction: @Composable () -> Unit
+    secondaryAction: @Composable () -> Unit,
+    tertiaryAction: @Composable () -> Unit
 ) {
     ElevatedCard(
         colors = CardDefaults.elevatedCardColors(
@@ -585,6 +727,7 @@ private fun SelectionCard(
                 primaryAction()
                 secondaryAction()
             }
+            tertiaryAction()
         }
     }
 }
@@ -602,18 +745,19 @@ private fun ConfirmationDialog(
         title = { Text(title) },
         text = { Text(text) },
         confirmButton = { TextButton(onClick = onConfirm) { Text(confirmLabel) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } }
     )
 }
 
 @Composable
 private fun LaunchedSnackBar(
-    message: String,
+    message: UiMessage,
     snackbarHostState: SnackbarHostState,
     onShown: (() -> Unit)? = null
 ) {
-    androidx.compose.runtime.LaunchedEffect(message) {
-        snackbarHostState.showSnackbar(message)
+    val text = stringResource(message.resId, *message.args.toTypedArray())
+    androidx.compose.runtime.LaunchedEffect(text) {
+        snackbarHostState.showSnackbar(text)
         onShown?.invoke()
     }
 }
@@ -656,22 +800,68 @@ private fun DropdownSelector(
     }
 }
 
-private val TopLevelSection.label: String
-    get() = when (this) {
-        TopLevelSection.MAIN -> "Main"
-        TopLevelSection.RECIPIENTS -> "Recipients"
-        TopLevelSection.MY_KEYS -> "My Keys"
-    }
+@Composable
+private fun RenameDialog(
+    title: String,
+    value: String,
+    valueLabel: String,
+    onValueChange: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                label = { Text(valueLabel) },
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.action_save)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } }
+    )
+}
+
+@Composable
+private fun ImportIdentityDialog(
+    label: String,
+    privateKey: String,
+    onLabelChange: (String) -> Unit,
+    onPrivateKeyChange: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.dialog_import_private_key_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = label,
+                    onValueChange = onLabelChange,
+                    label = { Text(stringResource(R.string.label_identity)) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = privateKey,
+                    onValueChange = onPrivateKeyChange,
+                    label = { Text(stringResource(R.string.label_private_key)) },
+                    minLines = 4,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(R.string.action_import_private_key)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } }
+    )
+}
 
 private val TopLevelSection.icon
     get() = when (this) {
         TopLevelSection.MAIN -> Icons.Outlined.Home
         TopLevelSection.RECIPIENTS -> Icons.Outlined.People
         TopLevelSection.MY_KEYS -> Icons.Outlined.Key
-    }
-
-private val MainMode.label: String
-    get() = when (this) {
-        MainMode.ENCRYPT -> "Encrypt"
-        MainMode.DECRYPT -> "Decrypt"
     }

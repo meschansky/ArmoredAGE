@@ -14,14 +14,28 @@ class KnownRecipientManager(context: Context) {
     )
 
     fun addRecipient(name: String, publicKey: String) {
+        require(!hasRecipient(name)) { "duplicate" }
         require(publicKey.startsWith("age1")) { "Recipient must be an AGE X25519 public key." }
         prefs.edit().putString("recipient_$name", publicKey).apply()
     }
 
     fun getRecipient(name: String): String? = prefs.getString("recipient_$name", null)
 
+    fun hasRecipient(name: String): Boolean = prefs.contains("recipient_$name")
+
     fun deleteRecipient(name: String) {
         prefs.edit().remove("recipient_$name").apply()
+    }
+
+    fun renameRecipient(oldName: String, newName: String) {
+        require(hasRecipient(oldName)) { "not_found" }
+        if (oldName == newName) return
+        require(!hasRecipient(newName)) { "duplicate" }
+        val publicKey = getRecipient(oldName) ?: error("not_found")
+        prefs.edit()
+            .putString("recipient_$newName", publicKey)
+            .remove("recipient_$oldName")
+            .apply()
     }
 
     fun listRecipients(): List<Pair<String, String>> =

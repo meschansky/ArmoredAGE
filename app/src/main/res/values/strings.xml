@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ArmoredAge</string>
+    <string name="app_tagline">Encrypt, decrypt, and manage AGE identities</string>
+
+    <string name="nav_main">Main</string>
+    <string name="nav_recipients">Recipients</string>
+    <string name="nav_my_keys">My Keys</string>
+
+    <string name="main_eyebrow">Main</string>
+    <string name="main_title">Encode and decode armored AGE payloads</string>
+    <string name="main_body">Focus on one workflow at a time and keep results easy to copy.</string>
+    <string name="main_mode_encrypt">Encrypt</string>
+    <string name="main_mode_decrypt">Decrypt</string>
+    <string name="main_encrypt_title">Encrypt</string>
+    <string name="main_encrypt_body">Choose a saved recipient and convert plaintext into armored AGE output.</string>
+    <string name="main_decrypt_title">Decrypt</string>
+    <string name="main_decrypt_body">Use one of your saved identities to decode an armored AGE payload.</string>
+
+    <string name="label_recipient">Recipient</string>
+    <string name="placeholder_select_recipient">Select a recipient</string>
+    <string name="label_identity">Identity</string>
+    <string name="placeholder_select_identity">Select an identity</string>
+    <string name="label_plaintext">Plaintext</string>
+    <string name="label_armored_payload">Armored AGE payload</string>
+    <string name="label_recipient_alias">Recipient alias</string>
+    <string name="label_age_public_key">AGE public key</string>
+    <string name="hint_age_public_key">Expected format: age1...</string>
+    <string name="label_private_key">AGE private key</string>
+
+    <string name="action_encrypt">Encrypt</string>
+    <string name="action_decrypt">Decrypt</string>
+    <string name="action_clear">Clear</string>
+    <string name="action_copy">Copy</string>
+    <string name="action_copy_result">Copy result</string>
+    <string name="action_copy_public">Copy public</string>
+    <string name="action_copy_private">Copy private</string>
+    <string name="action_save_recipient">Save recipient</string>
+    <string name="action_generate_identity">Generate identity</string>
+    <string name="action_import_private_key">Import private key</string>
+    <string name="action_select">Select</string>
+    <string name="action_selected">Selected</string>
+    <string name="action_rename">Rename</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_delete_identity">Delete identity</string>
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+
+    <string name="result_title">Result</string>
+    <string name="result_hint">Run an encrypt or decrypt action to see output here.</string>
+    <string name="result_output_label">Output</string>
+
+    <string name="recipients_eyebrow">Recipients</string>
+    <string name="recipients_title">Manage who you encrypt for</string>
+    <string name="recipients_body">Save trusted recipient keys once, then pick them instantly from the main flow.</string>
+    <string name="recipients_add_title">Add recipient</string>
+    <string name="recipients_add_body">Store a recipient alias and public AGE key for reuse.</string>
+    <string name="empty_recipients_title">No recipients yet</string>
+    <string name="empty_recipients_body">Add a recipient to enable encryption.</string>
+
+    <string name="my_keys_eyebrow">My Keys</string>
+    <string name="my_keys_title">Manage local identities</string>
+    <string name="my_keys_body">Generate device-stored AGE identities, choose the active one, and copy keys when needed.</string>
+    <string name="my_keys_create_title">Create identity</string>
+    <string name="my_keys_create_body">Generate a fresh X25519 identity and store it securely on-device.</string>
+    <string name="empty_identities_title">No identities yet</string>
+    <string name="empty_identities_body">Generate or import an identity to decrypt messages on this device.</string>
+
+    <string name="dialog_delete_recipient_title">Delete recipient?</string>
+    <string name="dialog_delete_recipient_body">Remove "%1$s" from saved recipients?</string>
+    <string name="dialog_delete_identity_title">Delete identity?</string>
+    <string name="dialog_delete_identity_body">Delete "%1$s" and its stored keys from this device?</string>
+    <string name="dialog_copy_private_key_title">Copy private key?</string>
+    <string name="dialog_copy_private_key_body">Private keys grant decrypt access. Copy "%1$s" to the clipboard?</string>
+    <string name="dialog_rename_recipient_title">Rename recipient</string>
+    <string name="dialog_rename_identity_title">Rename identity</string>
+    <string name="dialog_import_private_key_title">Import private key</string>
+
+    <string name="notice_result_copied">Result copied</string>
+    <string name="notice_public_key_copied">Public key copied</string>
+    <string name="notice_private_key_copied">Private key copied</string>
+    <string name="notice_identity_generated">Generated identity "%1$s".</string>
+    <string name="notice_recipient_saved">Saved recipient "%1$s".</string>
+    <string name="notice_recipient_deleted">Deleted recipient "%1$s".</string>
+    <string name="notice_recipient_renamed">Renamed recipient "%1$s" to "%2$s".</string>
+    <string name="notice_identity_deleted">Deleted identity "%1$s".</string>
+    <string name="notice_identity_renamed">Renamed identity "%1$s" to "%2$s".</string>
+    <string name="notice_identity_imported">Imported identity "%1$s".</string>
+
+    <string name="error_unknown">Unknown error</string>
+    <string name="error_recipient_name_required">Recipient name is required.</string>
+    <string name="error_recipient_duplicate">Recipient alias already exists.</string>
+    <string name="error_identity_label_required">Identity label is required.</string>
+    <string name="error_identity_duplicate">Identity label already exists.</string>
+    <string name="error_invalid_private_key">Invalid AGE private key.</string>
+    <string name="error_invalid_public_key">Recipient must be a valid AGE public key.</string>
+    <string name="error_select_recipient">Select a known recipient for encryption.</string>
+    <string name="error_identity_missing">Identity not found. Generate or import one first.</string>
+    <string name="error_invalid_armored_payload">Only armored AGE payloads are allowed.</string>
+</resources>

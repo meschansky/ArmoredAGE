@@ -1,8 +1,10 @@
 package com.example.armoredage.ui
 
 import android.content.Context
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.example.armoredage.R
 import com.example.armoredage.crypto.AgeArmor
 import com.example.armoredage.crypto.KageBridge
 import com.example.armoredage.data.KeyManager
@@ -14,24 +16,42 @@ import kotlinx.coroutines.flow.update
 enum class TopLevelSection {
     MAIN,
     RECIPIENTS,
-    MY_KEYS
+    MY_KEYS;
+
+    val labelRes: Int
+        get() = when (this) {
+            MAIN -> R.string.nav_main
+            RECIPIENTS -> R.string.nav_recipients
+            MY_KEYS -> R.string.nav_my_keys
+        }
 }
 
 enum class MainMode {
     ENCRYPT,
-    DECRYPT
+    DECRYPT;
+
+    val labelRes: Int
+        get() = when (this) {
+            ENCRYPT -> R.string.main_mode_encrypt
+            DECRYPT -> R.string.main_mode_decrypt
+        }
 }
+
+data class UiMessage(
+    @param:StringRes val resId: Int,
+    val args: List<Any> = emptyList()
+)
 
 data class AgeUiState(
     val plaintext: String = "",
     val ciphertext: String = "",
     val selectedRecipient: String = "",
-    val selectedIdentity: String = "default",
+    val selectedIdentity: String = "",
     val recipientNameInput: String = "",
     val recipientPubkeyInput: String = "",
     val result: String = "",
-    val error: String? = null,
-    val notice: String? = null,
+    val errorMessage: UiMessage? = null,
+    val noticeMessage: UiMessage? = null,
     val activeSection: TopLevelSection = TopLevelSection.MAIN,
     val mainMode: MainMode = MainMode.ENCRYPT,
     val identities: List<String> = emptyList(),
@@ -52,15 +72,19 @@ class AgeViewModel(
     )
     val uiState: StateFlow<AgeUiState> = _uiState
 
-    fun updatePlaintext(value: String) = _uiState.update { it.copy(plaintext = value, error = null) }
-    fun updateCiphertext(value: String) = _uiState.update { it.copy(ciphertext = value, error = null) }
-    fun updateRecipientName(value: String) = _uiState.update { it.copy(recipientNameInput = value, error = null) }
-    fun updateRecipientPubkey(value: String) = _uiState.update { it.copy(recipientPubkeyInput = value, error = null) }
-    fun selectRecipient(value: String) = _uiState.update { it.copy(selectedRecipient = value, error = null) }
-    fun selectIdentity(value: String) = _uiState.update { it.copy(selectedIdentity = value, error = null) }
+    fun updatePlaintext(value: String) = clearTransientAndUpdate { it.copy(plaintext = value) }
+    fun updateCiphertext(value: String) = clearTransientAndUpdate { it.copy(ciphertext = value) }
+    fun updateRecipientName(value: String) = clearTransientAndUpdate { it.copy(recipientNameInput = value) }
+    fun updateRecipientPubkey(value: String) = clearTransientAndUpdate { it.copy(recipientPubkeyInput = value) }
+    fun selectRecipient(value: String) = clearTransientAndUpdate { it.copy(selectedRecipient = value) }
+    fun selectIdentity(value: String) = clearTransientAndUpdate { it.copy(selectedIdentity = value) }
     fun selectSection(value: TopLevelSection) = _uiState.update { it.copy(activeSection = value) }
-    fun selectMainMode(value: MainMode) = _uiState.update { it.copy(mainMode = value, error = null) }
-    fun clearNotice() = _uiState.update { it.copy(notice = null) }
+    fun selectMainMode(value: MainMode) = clearTransientAndUpdate { it.copy(mainMode = value) }
+    fun clearNotice() = _uiState.update { it.copy(noticeMessage = null) }
+    fun clearError() = _uiState.update { it.copy(errorMessage = null) }
+    fun clearPlaintext() = _uiState.update { it.copy(plaintext = "", errorMessage = null) }
+    fun clearCiphertext() = _uiState.update { it.copy(ciphertext = "", errorMessage = null) }
+    fun clearResult() = _uiState.update { it.copy(result = "", errorMessage = null) }
 
     fun generateIdentity() {
         runCatching {
@@ -71,18 +95,21 @@ class AgeViewModel(
                     identities = keyManager.listIdentityLabels(),
                     selectedIdentity = label,
                     activeSection = TopLevelSection.MY_KEYS,
-                    notice = "Generated identity '$label'.",
-                    error = null
+                    noticeMessage = UiMessage(R.string.notice_identity_generated, listOf(label)),
+                    errorMessage = null
                 )
             }
-        }.onFailure { setError(it) }
+        }.onFailure { setError(R.string.error_unknown) }
     }
 
     fun saveRecipient() {
         val name = uiState.value.recipientNameInput.trim()
         val pub = uiState.value.recipientPubkeyInput.trim()
+        if (name.isEmpty()) {
+            setError(R.string.error_recipient_name_required)
+            return
+        }
         runCatching {
-            require(name.isNotEmpty()) { "Recipient name is required." }
             recipientManager.addRecipient(name, pub)
             _uiState.update {
                 it.copy(
@@ -91,11 +118,18 @@ class AgeViewModel(
                     recipientNameInput = "",
                     recipientPubkeyInput = "",
                     activeSection = TopLevelSection.RECIPIENTS,
-                    notice = "Saved recipient '$name'.",
-                    error = null
+                    noticeMessage = UiMessage(R.string.notice_recipient_saved, listOf(name)),
+                    errorMessage = null
                 )
             }
-        }.onFailure { setError(it) }
+        }.onFailure { ex ->
+            setError(
+                when (ex.message) {
+                    "duplicate" -> R.string.error_recipient_duplicate
+                    else -> R.string.error_invalid_public_key
+                }
+            )
+        }
     }
 
     fun deleteRecipient(name: String) {
@@ -106,11 +140,39 @@ class AgeViewModel(
                 it.copy(
                     recipients = recipients,
                     selectedRecipient = if (it.selectedRecipient == name) recipients.firstOrNull()?.first.orEmpty() else it.selectedRecipient,
-                    notice = "Deleted recipient '$name'.",
-                    error = null
+                    noticeMessage = UiMessage(R.string.notice_recipient_deleted, listOf(name)),
+                    errorMessage = null
                 )
             }
-        }.onFailure { setError(it) }
+        }.onFailure { setError(R.string.error_unknown) }
+    }
+
+    fun renameRecipient(oldName: String, newName: String): Boolean {
+        val trimmed = newName.trim()
+        if (trimmed.isEmpty()) {
+            setError(R.string.error_recipient_name_required)
+            return false
+        }
+        runCatching {
+            recipientManager.renameRecipient(oldName, trimmed)
+            val recipients = recipientManager.listRecipients()
+            _uiState.update {
+                it.copy(
+                    recipients = recipients,
+                    selectedRecipient = if (it.selectedRecipient == oldName) trimmed else it.selectedRecipient,
+                    noticeMessage = UiMessage(R.string.notice_recipient_renamed, listOf(oldName, trimmed)),
+                    errorMessage = null
+                )
+            }
+        }.onFailure { ex ->
+            setError(
+                when (ex.message) {
+                    "duplicate" -> R.string.error_recipient_duplicate
+                    else -> R.string.error_unknown
+                }
+            )
+        }
+        return uiState.value.errorMessage == null
     }
 
     fun deleteIdentity(label: String) {
@@ -121,22 +183,85 @@ class AgeViewModel(
                 it.copy(
                     identities = identities,
                     selectedIdentity = if (it.selectedIdentity == label) identities.firstOrNull().orEmpty() else it.selectedIdentity,
-                    notice = "Deleted identity '$label'.",
-                    error = null
+                    noticeMessage = UiMessage(R.string.notice_identity_deleted, listOf(label)),
+                    errorMessage = null
                 )
             }
-        }.onFailure { setError(it) }
+        }.onFailure { setError(R.string.error_unknown) }
+    }
+
+    fun renameIdentity(oldLabel: String, newLabel: String): Boolean {
+        val trimmed = newLabel.trim()
+        if (trimmed.isEmpty()) {
+            setError(R.string.error_identity_label_required)
+            return false
+        }
+        runCatching {
+            keyManager.renameIdentity(oldLabel, trimmed)
+            val identities = keyManager.listIdentityLabels()
+            _uiState.update {
+                it.copy(
+                    identities = identities,
+                    selectedIdentity = if (it.selectedIdentity == oldLabel) trimmed else it.selectedIdentity,
+                    noticeMessage = UiMessage(R.string.notice_identity_renamed, listOf(oldLabel, trimmed)),
+                    errorMessage = null
+                )
+            }
+        }.onFailure { ex ->
+            setError(
+                when (ex.message) {
+                    "duplicate" -> R.string.error_identity_duplicate
+                    else -> R.string.error_unknown
+                }
+            )
+        }
+        return uiState.value.errorMessage == null
+    }
+
+    fun importIdentity(label: String, privateKey: String): Boolean {
+        val trimmed = label.trim()
+        if (trimmed.isEmpty()) {
+            setError(R.string.error_identity_label_required)
+            return false
+        }
+        runCatching {
+            keyManager.importIdentity(trimmed, privateKey.trim())
+            _uiState.update {
+                it.copy(
+                    identities = keyManager.listIdentityLabels(),
+                    selectedIdentity = trimmed,
+                    activeSection = TopLevelSection.MY_KEYS,
+                    noticeMessage = UiMessage(R.string.notice_identity_imported, listOf(trimmed)),
+                    errorMessage = null
+                )
+            }
+        }.onFailure { ex ->
+            setError(
+                when (ex.message) {
+                    "duplicate" -> R.string.error_identity_duplicate
+                    else -> R.string.error_invalid_private_key
+                }
+            )
+        }
+        return uiState.value.errorMessage == null
     }
 
     fun encrypt() {
         val state = uiState.value
         runCatching {
             val recipient = recipientManager.getRecipient(state.selectedRecipient)
-                ?: error("Select a known recipient for encryption.")
+                ?: throw IllegalStateException("missing recipient")
             val out = kageBridge.encryptArmored(state.plaintext, recipient)
             AgeArmor.requireArmored(out)
-            _uiState.update { it.copy(result = out, error = null) }
-        }.onFailure { setError(it) }
+            _uiState.update { it.copy(result = out, errorMessage = null) }
+        }.onFailure { ex ->
+            setError(
+                when (ex.message) {
+                    "missing recipient" -> R.string.error_select_recipient
+                    else -> R.string.error_unknown
+                }
+            )
+        }
     }
 
     fun decrypt() {
@@ -144,19 +269,29 @@ class AgeViewModel(
         runCatching {
             AgeArmor.requireArmored(state.ciphertext)
             val privateKey = keyManager.getStoredPrivateKey(state.selectedIdentity)
-                ?: error("Identity not found. Generate one first.")
+                ?: throw IllegalStateException("missing identity")
             val out = kageBridge.decryptArmored(state.ciphertext, privateKey)
-            _uiState.update { it.copy(result = out, error = null) }
-        }.onFailure { setError(it) }
+            _uiState.update { it.copy(result = out, errorMessage = null) }
+        }.onFailure { ex ->
+            setError(
+                when (ex.message) {
+                    "missing identity" -> R.string.error_identity_missing
+                    else -> R.string.error_invalid_armored_payload
+                }
+            )
+        }
     }
 
     fun publicKeyFor(label: String): String? = keyManager.getStoredPublicKey(label)
-
     fun privateKeyFor(label: String): String? = keyManager.getStoredPrivateKey(label)
 
-    private fun setError(ex: Throwable) {
+    private fun clearTransientAndUpdate(transform: (AgeUiState) -> AgeUiState) {
+        _uiState.update { transform(it).copy(errorMessage = null) }
+    }
+
+    private fun setError(@StringRes messageRes: Int, args: List<Any> = emptyList()) {
         _uiState.update {
-            it.copy(error = ex.message ?: "Unknown error", result = "")
+            it.copy(errorMessage = UiMessage(messageRes, args), result = "")
         }
     }
 
@@ -167,8 +302,8 @@ class AgeViewModel(
                     require(modelClass.isAssignableFrom(AgeViewModel::class.java))
                     return modelClass.cast(
                         AgeViewModel(
-                        keyManager = KeyManager(context),
-                        recipientManager = KnownRecipientManager(context)
+                            keyManager = KeyManager(context),
+                            recipientManager = KnownRecipientManager(context)
                         )
                     )!!
                 }
